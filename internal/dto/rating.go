@@ -7,10 +7,10 @@ type CreateRatingRequest struct {
 }
 
 type RatingResponse struct {
-	ID        string `json:"id"`
-	DishID    string `json:"dish_id"`
-	UserID    string `json:"user_id"`
-	Rating    int    `json:"rating"`
+	ID     string `json:"id"`
+	DishID string `json:"dish_id"`
+	UserID string `json:"user_id"`
+	Rating int    `json:"rating"`
 }
 
 func (r CreateRatingRequest) Validate(validate *validator.Validate) error {

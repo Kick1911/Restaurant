@@ -11,7 +11,7 @@ import (
 )
 
 type DishService struct {
-	dishRepo   *repository.DishRepository
+	dishRepo *repository.DishRepository
 }
 
 func NewDishService(dishRepo *repository.DishRepository) *DishService {

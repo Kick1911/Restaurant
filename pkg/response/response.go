@@ -14,11 +14,11 @@ type APIResponse struct {
 }
 
 type PaginatedResponse struct {
-	Success  bool        `json:"success"`
-	Data     interface{} `json:"data"`
-	Page     int         `json:"page"`
-	Limit    int         `json:"limit"`
-	Total    int         `json:"total"`
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data"`
+	Page    int         `json:"page"`
+	Limit   int         `json:"limit"`
+	Total   int         `json:"total"`
 }
 
 func JSON(w http.ResponseWriter, status int, data interface{}) {
