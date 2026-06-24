@@ -71,11 +71,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	redisContainer, err := tcRedis.RunContainer(ctx,
+	redisContainer, err := tcRedis.RunContainer(
+		ctx,
 		testcontainers.WithImage("redis:7-alpine"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("Ready to accept connections").
-				WithStartupTimeout(60*time.Second),
+				WithStartupTimeout(60 * time.Second),
 		),
 	)
 	if err != nil {
@@ -147,8 +148,8 @@ func seedTenantAndUser(t *testing.T, db *sqlx.DB) (slug, email, password string)
 	slug = "test-tenant"
 
 	_, err := db.Exec(`
-        INSERT INTO tenants (id, name, slug, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW())`,
+		INSERT INTO tenants (id, name, slug, created_at, updated_at)
+		VALUES ($1, $2, $3, NOW(), NOW())`,
 		tenantID, "Test Tenant", slug)
 	require.NoError(t, err)
 
@@ -158,8 +159,8 @@ func seedTenantAndUser(t *testing.T, db *sqlx.DB) (slug, email, password string)
 
 	email = "test@example.com"
 	_, err = db.Exec(`
-        INSERT INTO users (id, tenant_id, name, email, password_hash, role, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+		INSERT INTO users (id, tenant_id, name, email, password_hash, role, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
 		uuid.New(), tenantID, "Test User", email, string(hash), "customer")
 	require.NoError(t, err)
 
@@ -172,7 +173,7 @@ func buildLoginRouter(t *testing.T) *chi.Mux {
 	tenantRepo := repository.NewTenantRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	bfProtector := middleware.NewBruteForceProtector(rdb)
-	svc := service.NewUserService(userRepo, tenantRepo, bfProtector, "test-secret", 24*time.Hour, db)
+	svc := service.NewUserService(userRepo, tenantRepo, bfProtector, "test-secret", 24 * time.Hour, db)
 	h := handler.NewUserHandler(svc)
 
 	r := chi.NewRouter()
