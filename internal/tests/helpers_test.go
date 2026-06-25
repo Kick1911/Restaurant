@@ -1,12 +1,8 @@
 package handler_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"log"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -24,12 +19,11 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/kick/sigma-connected/internal/dto"
+	"github.com/kick/sigma-connected/internal/auth"
 	"github.com/kick/sigma-connected/internal/handler"
 	"github.com/kick/sigma-connected/internal/middleware"
 	"github.com/kick/sigma-connected/internal/repository"
 	"github.com/kick/sigma-connected/internal/service"
-	"github.com/kick/sigma-connected/pkg/response"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -167,13 +161,23 @@ func seedTenantAndUser(t *testing.T, db *sqlx.DB) (slug, email, password string)
 	return
 }
 
+func generateTestToken(t *testing.T) string {
+	t.Helper()
+
+	userID := uuid.New()
+	tenantID := uuid.New()
+	token, err := auth.GenerateToken("test-secret", userID, tenantID, "test@example.com", "customer", 24*time.Hour)
+	require.NoError(t, err)
+	return token
+}
+
 func buildLoginRouter(t *testing.T) *chi.Mux {
 	t.Helper()
 
 	tenantRepo := repository.NewTenantRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	bfProtector := middleware.NewBruteForceProtector(rdb)
-	svc := service.NewUserService(userRepo, tenantRepo, bfProtector, "test-secret", 24 * time.Hour, db)
+	svc := service.NewUserService(userRepo, tenantRepo, bfProtector, "test-secret", 24*time.Hour, db)
 	h := handler.NewUserHandler(svc)
 
 	r := chi.NewRouter()
@@ -181,147 +185,39 @@ func buildLoginRouter(t *testing.T) *chi.Mux {
 	return r
 }
 
-func TestLogin_Success(t *testing.T) {
-	slug, email, password := seedTenantAndUser(t, db)
-	defer truncateAll(t, db)
-	defer flushRedis(t)
+func buildDishRouter(t *testing.T) *chi.Mux {
+	t.Helper()
 
-	r := buildLoginRouter(t)
+	dishRepo := repository.NewDishRepository(db)
+	dishService := service.NewDishService(dishRepo)
+	dishHandler := handler.NewDishHandler(dishService)
 
-	body := dto.LoginRequest{
-		TenantSlug: slug,
-		Email:      email,
-		Password:   password,
-	}
-	bodyBytes, _ := json.Marshal(body)
+	ratingRepo := repository.NewRatingRepository(db)
+	ratingService := service.NewRatingService(ratingRepo)
+	ratingHandler := handler.NewRatingHandler(ratingService)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth("test-secret"))
+			r.Use(middleware.RateLimit)
 
-	r.ServeHTTP(rec, req)
+			r.Get("/dishes", dishHandler.Search)
+			r.Get("/dishes/{id}", dishHandler.GetByID)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
+			r.Route("/dishes/{id}/ratings", func(r chi.Router) {
+				r.Get("/", ratingHandler.GetByDishID)
+				r.Post("/", ratingHandler.Create)
+			})
 
-	var resp response.APIResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.True(t, resp.Success)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireRole("admin"))
 
-	data, ok := resp.Data.(map[string]interface{})
-	require.True(t, ok)
-
-	token, ok := data["token"].(string)
-	require.True(t, ok)
-	assert.NotEmpty(t, token)
-
-	userData, ok := data["user"].(map[string]interface{})
-	require.True(t, ok)
-	assert.Equal(t, email, userData["email"])
-	assert.Equal(t, "Test User", userData["name"])
-	assert.Equal(t, "customer", userData["role"])
-}
-
-func TestLogin_InvalidPassword(t *testing.T) {
-	slug, email, _ := seedTenantAndUser(t, db)
-	defer truncateAll(t, db)
-	defer flushRedis(t)
-
-	r := buildLoginRouter(t)
-
-	body := dto.LoginRequest{
-		TenantSlug: slug,
-		Email:      email,
-		Password:   "wrongpassword",
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-
-	var resp response.APIResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Error, "invalid email or password")
-}
-
-func TestLogin_NonExistentUser(t *testing.T) {
-	slug, _, _ := seedTenantAndUser(t, db)
-	defer truncateAll(t, db)
-	defer flushRedis(t)
-
-	r := buildLoginRouter(t)
-
-	body := dto.LoginRequest{
-		TenantSlug: slug,
-		Email:      "nonexistent@example.com",
-		Password:   "password123",
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-
-	var resp response.APIResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Error, "invalid email or password")
-}
-
-func TestLogin_InvalidJSON(t *testing.T) {
-	defer flushRedis(t)
-
-	r := buildLoginRouter(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader([]byte(`{bad json`)))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var resp response.APIResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Equal(t, "invalid request body", resp.Error)
-}
-
-func TestLogin_ValidationError(t *testing.T) {
-	defer flushRedis(t)
-
-	r := buildLoginRouter(t)
-
-	body := dto.LoginRequest{
-		TenantSlug: "",
-		Email:      "",
-		Password:   "",
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var resp response.APIResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Equal(t, "validation failed", resp.Error)
+				r.Post("/dishes", dishHandler.Create)
+				r.Put("/dishes/{id}", dishHandler.Update)
+				r.Delete("/dishes/{id}", dishHandler.Delete)
+			})
+		})
+	})
+	return r
 }
