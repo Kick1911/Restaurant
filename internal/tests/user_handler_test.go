@@ -15,14 +15,13 @@ import (
 )
 
 func TestLogin_Success(t *testing.T) {
-	slug, email, password := seedTenantAndUser(t, db)
+	_, email, password := seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	r := buildLoginRouter(t)
 
 	body := dto.LoginRequest{
-		TenantSlug: slug,
 		Email:      email,
 		Password:   password,
 	}
@@ -55,14 +54,13 @@ func TestLogin_Success(t *testing.T) {
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
-	slug, email, _ := seedTenantAndUser(t, db)
+	_, email, _ := seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	r := buildLoginRouter(t)
 
 	body := dto.LoginRequest{
-		TenantSlug: slug,
 		Email:      email,
 		Password:   "wrongpassword",
 	}
@@ -84,14 +82,13 @@ func TestLogin_InvalidPassword(t *testing.T) {
 }
 
 func TestLogin_NonExistentUser(t *testing.T) {
-	slug, _, _ := seedTenantAndUser(t, db)
+	seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	r := buildLoginRouter(t)
 
 	body := dto.LoginRequest{
-		TenantSlug: slug,
 		Email:      "nonexistent@example.com",
 		Password:   "password123",
 	}
@@ -138,7 +135,6 @@ func TestLogin_ValidationError(t *testing.T) {
 	r := buildLoginRouter(t)
 
 	body := dto.LoginRequest{
-		TenantSlug: "",
 		Email:      "",
 		Password:   "",
 	}

@@ -14,12 +14,11 @@ import (
 )
 
 func TestDish_Search(t *testing.T) {
-	slug, email, password := seedTenantAndUser(t, db)
+	_, email, password := seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	loginBody := map[string]string{
-		"tenant_slug": slug,
 		"email":       email,
 		"password":    password,
 	}
@@ -40,7 +39,7 @@ func TestDish_Search(t *testing.T) {
 	token := data["token"].(string)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/dishes", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer " + token)
 	rec := httptest.NewRecorder()
 
 	r := buildDishRouter(t)

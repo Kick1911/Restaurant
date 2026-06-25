@@ -18,8 +18,8 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `INSERT INTO users (id, tenant_id, name, email, password_hash, role, created_at, updated_at)
-	          VALUES (:id, :tenant_id, :name, :email, :password_hash, :role, :created_at, :updated_at)
-	          RETURNING id, created_at, updated_at`
+						VALUES (:id, :tenant_id, :name, :email, :password_hash, :role, :created_at, :updated_at)
+						RETURNING id, created_at, updated_at`
 	rows, err := r.db.NamedQueryContext(ctx, query, user)
 	if err != nil {
 		return err
@@ -31,11 +31,11 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
-func (r *UserRepository) FindByEmail(ctx context.Context, tenantID uuid.UUID, email string) (*domain.User, error) {
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
 	err := r.db.GetContext(ctx, &user,
-		"SELECT id, tenant_id, name, email, password_hash, role, created_at, updated_at FROM users WHERE tenant_id = $1 AND email = $2",
-		tenantID, email)
+		"SELECT id, tenant_id, name, email, password_hash, role, created_at, updated_at FROM users WHERE email = $1",
+		email)
 	if err != nil {
 		return nil, err
 	}

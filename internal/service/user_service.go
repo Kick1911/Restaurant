@@ -101,12 +101,7 @@ func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Aut
 		return nil, errors.New("account is temporarily locked due to too many failed attempts. Try again later")
 	}
 
-	tenant, err := s.tenantRepo.FindBySlug(ctx, req.TenantSlug)
-	if err != nil {
-		return nil, errors.New("invalid tenant or credentials")
-	}
-
-	user, err := s.userRepo.FindByEmail(ctx, tenant.ID, req.Email)
+	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, errors.New("invalid email or password")
 	}
@@ -118,7 +113,7 @@ func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Aut
 
 	s.bfProtector.ResetAttempts(ctx, req.Email)
 
-	token, err := auth.GenerateToken(s.jwtSecret, user.ID, tenant.ID, user.Email, string(user.Role), s.jwtExpiry)
+	token, err := auth.GenerateToken(s.jwtSecret, user.ID, user.TenantID, user.Email, string(user.Role), s.jwtExpiry)
 	if err != nil {
 		return nil, errors.New("failed to generate token")
 	}

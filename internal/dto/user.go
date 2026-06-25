@@ -10,7 +10,6 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	TenantSlug string `json:"tenant_slug" validate:"required,min=2,max=50"`
 	Email      string `json:"email" validate:"required,email"`
 	Password   string `json:"password" validate:"required"`
 }
