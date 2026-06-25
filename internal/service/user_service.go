@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,12 +51,14 @@ func (s *UserService) Register(ctx context.Context, req dto.RegisterRequest) (*d
 			Slug: req.TenantSlug,
 		}
 		if err := s.tenantRepo.Create(ctx, tenant); err != nil {
+			slog.Error("register: create tenant", "error", err, "slug", req.TenantSlug)
 			return nil, errors.New("failed to create tenant")
 		}
 	}
 
 	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
+		slog.Error("register: hash password", "error", err)
 		return nil, errors.New("failed to hash password")
 	}
 
@@ -73,11 +76,13 @@ func (s *UserService) Register(ctx context.Context, req dto.RegisterRequest) (*d
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
+		slog.Error("register: create user", "error", err, "email", req.Email)
 		return nil, errors.New("email already registered for this tenant")
 	}
 
 	token, err := auth.GenerateToken(s.jwtSecret, user.ID, tenant.ID, user.Email, string(user.Role), s.jwtExpiry)
 	if err != nil {
+		slog.Error("register: generate token", "error", err)
 		return nil, errors.New("failed to generate token")
 	}
 
@@ -95,6 +100,7 @@ func (s *UserService) Register(ctx context.Context, req dto.RegisterRequest) (*d
 func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
 	locked, err := s.bfProtector.IsLocked(ctx, req.Email)
 	if err != nil {
+		slog.Error("login: check lockout", "error", err, "email", req.Email)
 		return nil, errors.New("internal error")
 	}
 	if locked {
@@ -103,10 +109,12 @@ func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Aut
 
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
+		slog.Warn("login: user not found", "error", err, "email", req.Email)
 		return nil, errors.New("invalid email or password")
 	}
 
 	if !auth.CheckPassword(req.Password, user.PasswordHash) {
+		slog.Warn("login: invalid password", "email", req.Email)
 		s.bfProtector.RecordFailedAttempt(ctx, req.Email)
 		return nil, errors.New("invalid email or password")
 	}
@@ -115,6 +123,7 @@ func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Aut
 
 	token, err := auth.GenerateToken(s.jwtSecret, user.ID, user.TenantID, user.Email, string(user.Role), s.jwtExpiry)
 	if err != nil {
+		slog.Error("login: generate token", "error", err)
 		return nil, errors.New("failed to generate token")
 	}
 

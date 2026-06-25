@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/kick/sigma-connected/internal/domain"
@@ -27,6 +28,7 @@ func (s *RatingService) Create(ctx context.Context, dishID, userID uuid.UUID, re
 	}
 
 	if err := s.ratingRepo.Create(ctx, rating); err != nil {
+		slog.Error("create rating", "error", err, "dish_id", dishID, "user_id", userID)
 		return nil, errors.New("failed to create rating")
 	}
 
@@ -41,6 +43,7 @@ func (s *RatingService) Create(ctx context.Context, dishID, userID uuid.UUID, re
 func (s *RatingService) GetByDishID(ctx context.Context, dishID uuid.UUID) ([]dto.RatingResponse, error) {
 	ratings, err := s.ratingRepo.FindByDishID(ctx, dishID)
 	if err != nil {
+		slog.Error("get ratings by dish", "error", err, "dish_id", dishID)
 		return nil, errors.New("failed to fetch ratings")
 	}
 

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/kick/sigma-connected/internal/domain"
@@ -21,7 +22,7 @@ func (r *TenantRepository) Create(ctx context.Context, tenant *domain.Tenant) er
 	          RETURNING id, created_at, updated_at`
 	rows, err := r.db.NamedQueryContext(ctx, query, tenant)
 	if err != nil {
-		return err
+		return fmt.Errorf("create tenant: %w", err)
 	}
 	defer rows.Close()
 	if rows.Next() {
@@ -34,7 +35,7 @@ func (r *TenantRepository) FindBySlug(ctx context.Context, slug string) (*domain
 	var tenant domain.Tenant
 	err := r.db.GetContext(ctx, &tenant, "SELECT id, name, slug, created_at, updated_at FROM tenants WHERE slug = $1", slug)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find tenant by slug %q: %w", slug, err)
 	}
 	return &tenant, nil
 }

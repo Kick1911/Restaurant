@@ -24,14 +24,22 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	slog.SetDefault(logger)
-
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
+
+	var handlerOpts slog.HandlerOptions
+	var logger *slog.Logger
+	if cfg.App.Environment == "development" {
+		handlerOpts = slog.HandlerOptions{Level: slog.LevelDebug}
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &handlerOpts))
+	} else {
+		handlerOpts = slog.HandlerOptions{Level: slog.LevelInfo}
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &handlerOpts))
+	}
+	slog.SetDefault(logger)
 
 	db, err := sqlx.Connect("pgx", cfg.Database.URL)
 	if err != nil {

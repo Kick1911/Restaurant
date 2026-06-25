@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/kick/sigma-connected/internal/domain"
@@ -29,6 +30,7 @@ func (s *DishService) Create(ctx context.Context, tenantID uuid.UUID, req dto.Cr
 	}
 
 	if err := s.dishRepo.Create(ctx, dish); err != nil {
+		slog.Error("create dish", "error", err, "tenant_id", tenantID)
 		return nil, errors.New("failed to create dish")
 	}
 
@@ -44,10 +46,14 @@ func (s *DishService) Create(ctx context.Context, tenantID uuid.UUID, req dto.Cr
 func (s *DishService) GetByID(ctx context.Context, tenantID, dishID uuid.UUID) (*dto.DishResponse, error) {
 	dish, err := s.dishRepo.FindByID(ctx, tenantID, dishID)
 	if err != nil {
+		slog.Warn("get dish by id: not found", "error", err, "dish_id", dishID, "tenant_id", tenantID)
 		return nil, errors.New("dish not found")
 	}
 
-	avgRating, _ := s.dishRepo.GetAverageRating(ctx, dish.ID)
+	avgRating, err := s.dishRepo.GetAverageRating(ctx, dish.ID)
+	if err != nil {
+		slog.Error("get dish: average rating", "error", err, "dish_id", dish.ID)
+	}
 
 	return &dto.DishResponse{
 		ID:          dish.ID.String(),
@@ -79,6 +85,7 @@ func (s *DishService) Update(ctx context.Context, tenantID, dishID uuid.UUID, re
 	}
 
 	if err := s.dishRepo.Update(ctx, dish); err != nil {
+		slog.Error("update dish", "error", err, "dish_id", dishID, "tenant_id", tenantID)
 		return nil, errors.New("failed to update dish")
 	}
 
@@ -93,6 +100,7 @@ func (s *DishService) Update(ctx context.Context, tenantID, dishID uuid.UUID, re
 
 func (s *DishService) Delete(ctx context.Context, tenantID, dishID uuid.UUID) error {
 	if err := s.dishRepo.Delete(ctx, tenantID, dishID); err != nil {
+		slog.Error("delete dish", "error", err, "dish_id", dishID, "tenant_id", tenantID)
 		return errors.New("dish not found")
 	}
 	return nil
@@ -108,6 +116,7 @@ func (s *DishService) Search(ctx context.Context, tenantID uuid.UUID, query stri
 
 	dishes, total, err := s.dishRepo.Search(ctx, tenantID, query, page, limit)
 	if err != nil {
+		slog.Error("search dishes", "error", err, "tenant_id", tenantID, "query", query)
 		return nil, 0, errors.New("failed to search dishes")
 	}
 

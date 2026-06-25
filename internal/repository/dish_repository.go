@@ -24,7 +24,7 @@ func (r *DishRepository) Create(ctx context.Context, dish *domain.Dish) error {
 	          RETURNING id, created_at, updated_at`
 	rows, err := r.db.NamedQueryContext(ctx, query, dish)
 	if err != nil {
-		return err
+		return fmt.Errorf("create dish: %w", err)
 	}
 	defer rows.Close()
 	if rows.Next() {
@@ -39,7 +39,7 @@ func (r *DishRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (
 		"SELECT id, tenant_id, name, description, price, image_url, created_at, updated_at FROM dishes WHERE tenant_id = $1 AND id = $2",
 		tenantID, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find dish by ID: %w", err)
 	}
 	return &dish, nil
 }
@@ -50,11 +50,11 @@ func (r *DishRepository) Update(ctx context.Context, dish *domain.Dish) error {
 	          WHERE id = :id AND tenant_id = :tenant_id`
 	result, err := r.db.NamedExecContext(ctx, query, dish)
 	if err != nil {
-		return err
+		return fmt.Errorf("update dish: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("update dish rows affected: %w", err)
 	}
 	if affected == 0 {
 		return fmt.Errorf("dish not found")
@@ -66,11 +66,11 @@ func (r *DishRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 	result, err := r.db.ExecContext(ctx,
 		"DELETE FROM dishes WHERE tenant_id = $1 AND id = $2", tenantID, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete dish: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("delete dish rows affected: %w", err)
 	}
 	if affected == 0 {
 		return fmt.Errorf("dish not found")
@@ -98,7 +98,7 @@ func (r *DishRepository) Search(ctx context.Context, tenantID uuid.UUID, query s
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM dishes WHERE %s", where)
 	rows, err := r.db.NamedQueryContext(ctx, countQuery, args)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("search dishes count: %w", err)
 	}
 	var total int
 	if rows.Next() {
@@ -110,7 +110,7 @@ func (r *DishRepository) Search(ctx context.Context, tenantID uuid.UUID, query s
 	var dishes []domain.Dish
 	err = r.db.SelectContext(ctx, &dishes, dataQuery, args)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("search dishes query: %w", err)
 	}
 
 	return dishes, total, nil
@@ -121,7 +121,7 @@ func (r *DishRepository) GetAverageRating(ctx context.Context, dishID uuid.UUID)
 	err := r.db.GetContext(ctx, &avg,
 		"SELECT COALESCE(AVG(rating), 0) FROM ratings WHERE dish_id = $1", dishID)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("get average rating: %w", err)
 	}
 	return avg, nil
 }

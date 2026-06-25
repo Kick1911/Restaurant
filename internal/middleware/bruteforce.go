@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -30,11 +31,13 @@ func (b *BruteForceProtector) RecordFailedAttempt(ctx context.Context, email str
 	pipe.Expire(ctx, counterKey, lockDuration)
 	_, err := pipe.Exec(ctx)
 	if err != nil {
+		slog.Error("brute force: record failed attempt", "error", err, "email", email)
 		return fmt.Errorf("record failed attempt: %w", err)
 	}
 
 	count, err := b.rdb.Get(ctx, counterKey).Int()
 	if err != nil {
+		slog.Error("brute force: get attempt count", "error", err, "email", email)
 		return fmt.Errorf("get attempt count: %w", err)
 	}
 
@@ -42,6 +45,7 @@ func (b *BruteForceProtector) RecordFailedAttempt(ctx context.Context, email str
 		lockKey := lockPrefix + email
 		err := b.rdb.Set(ctx, lockKey, "1", lockDuration).Err()
 		if err != nil {
+			slog.Error("brute force: set lockout", "error", err, "email", email)
 			return fmt.Errorf("set lockout: %w", err)
 		}
 	}
@@ -53,6 +57,7 @@ func (b *BruteForceProtector) IsLocked(ctx context.Context, email string) (bool,
 	lockKey := lockPrefix + email
 	exists, err := b.rdb.Exists(ctx, lockKey).Result()
 	if err != nil {
+		slog.Error("brute force: check lockout", "error", err, "email", email)
 		return false, fmt.Errorf("check lockout: %w", err)
 	}
 	return exists > 0, nil
@@ -65,5 +70,8 @@ func (b *BruteForceProtector) ResetAttempts(ctx context.Context, email string) e
 	pipe.Del(ctx, counterKey)
 	pipe.Del(ctx, lockKey)
 	_, err := pipe.Exec(ctx)
+	if err != nil {
+		slog.Error("brute force: reset attempts", "error", err, "email", email)
+	}
 	return err
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -22,7 +23,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 						RETURNING id, created_at, updated_at`
 	rows, err := r.db.NamedQueryContext(ctx, query, user)
 	if err != nil {
-		return err
+		return fmt.Errorf("create user: %w", err)
 	}
 	defer rows.Close()
 	if rows.Next() {
@@ -37,7 +38,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 		"SELECT id, tenant_id, name, email, password_hash, role, created_at, updated_at FROM users WHERE email = $1",
 		email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find user by email: %w", err)
 	}
 	return &user, nil
 }
@@ -47,7 +48,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 	err := r.db.GetContext(ctx, &user,
 		"SELECT id, tenant_id, name, email, password_hash, role, created_at, updated_at FROM users WHERE id = $1", id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find user by ID: %w", err)
 	}
 	return &user, nil
 }

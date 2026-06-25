@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type responseWriter struct {
@@ -24,13 +26,25 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(rw, r)
 
-			logger.Info("request",
+			attrs := []slog.Attr{
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Int("status", rw.status),
 				slog.Duration("duration", time.Since(start)),
 				slog.String("remote_addr", r.RemoteAddr),
-			)
+			}
+			if reqID := middleware.GetReqID(r.Context()); reqID != "" {
+				attrs = append(attrs, slog.String("request_id", reqID))
+			}
+
+			level := slog.LevelInfo
+			if rw.status >= 500 {
+				level = slog.LevelError
+			} else if rw.status >= 400 {
+				level = slog.LevelWarn
+			}
+
+			logger.LogAttrs(r.Context(), level, "request", attrs...)
 		})
 	}
 }
