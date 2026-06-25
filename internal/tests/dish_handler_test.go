@@ -46,4 +46,13 @@ func TestDish_Search(t *testing.T) {
 	r.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var dishSearchResp response.PaginatedResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &dishSearchResp))
+
+	assert.Equal(t, dishSearchResp.Success, true)
+	assert.Equal(t, dishSearchResp.Data, []interface{}{})
+	assert.Equal(t, dishSearchResp.Page, 1)
+	assert.Equal(t, dishSearchResp.Limit, 20)
+	assert.Equal(t, dishSearchResp.Total, 0)
 }

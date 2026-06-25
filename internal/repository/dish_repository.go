@@ -20,8 +20,8 @@ func NewDishRepository(db *sqlx.DB) *DishRepository {
 
 func (r *DishRepository) Create(ctx context.Context, dish *domain.Dish) error {
 	query := `INSERT INTO dishes (id, tenant_id, name, description, price, image_url, created_at, updated_at)
-	          VALUES (:id, :tenant_id, :name, :description, :price, :image_url, :created_at, :updated_at)
-	          RETURNING id, created_at, updated_at`
+						VALUES (:id, :tenant_id, :name, :description, :price, :image_url, :created_at, :updated_at)
+						RETURNING id, created_at, updated_at`
 	rows, err := r.db.NamedQueryContext(ctx, query, dish)
 	if err != nil {
 		return fmt.Errorf("create dish: %w", err)
@@ -46,8 +46,8 @@ func (r *DishRepository) FindByID(ctx context.Context, tenantID, id uuid.UUID) (
 
 func (r *DishRepository) Update(ctx context.Context, dish *domain.Dish) error {
 	query := `UPDATE dishes SET name = :name, description = :description, price = :price,
-	          image_url = :image_url, updated_at = NOW()
-	          WHERE id = :id AND tenant_id = :tenant_id`
+						image_url = :image_url, updated_at = NOW()
+						WHERE id = :id AND tenant_id = :tenant_id`
 	result, err := r.db.NamedExecContext(ctx, query, dish)
 	if err != nil {
 		return fmt.Errorf("update dish: %w", err)
@@ -106,11 +106,21 @@ func (r *DishRepository) Search(ctx context.Context, tenantID uuid.UUID, query s
 	}
 	rows.Close()
 
-	dataQuery := fmt.Sprintf("SELECT id, tenant_id, name, description, price, image_url, created_at, updated_at FROM dishes WHERE %s ORDER BY created_at DESC LIMIT :limit OFFSET :offset", where)
+	dataQuery := fmt.Sprintf(`SELECT id, tenant_id, name, description, price, image_url, created_at, updated_at
+		FROM dishes
+		WHERE %s ORDER BY created_at DESC
+		LIMIT :limit OFFSET :offset`, where)
 	var dishes []domain.Dish
-	err = r.db.SelectContext(ctx, &dishes, dataQuery, args)
+
+	stmt, err := r.db.PrepareNamedContext(ctx, dataQuery)
 	if err != nil {
-		return nil, 0, fmt.Errorf("search dishes query: %w", err)
+		return nil, 0, fmt.Errorf("search dishes query: %w %s %s", err, dataQuery, args)
+	}
+	defer stmt.Close()
+
+	err = stmt.SelectContext(ctx, &dishes, args)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search dishes query: %w %s %s", err, dataQuery, args)
 	}
 
 	return dishes, total, nil
