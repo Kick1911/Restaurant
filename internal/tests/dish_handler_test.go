@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"bytes"
+	"fmt"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,12 +15,12 @@ import (
 )
 
 func TestDish_Search(t *testing.T) {
-	_, email, password := seedTenantAndUser(t, db)
+	user, password := seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	loginBody := map[string]string{
-		"email":       email,
+		"email":       user.Email,
 		"password":    password,
 	}
 	b, _ := json.Marshal(loginBody)
@@ -43,16 +44,29 @@ func TestDish_Search(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	r := buildDishRouter(t)
-	r.ServeHTTP(rec, req)
 
+	r.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var dishSearchResp response.PaginatedResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &dishSearchResp))
 
 	assert.Equal(t, dishSearchResp.Success, true)
-	assert.Equal(t, dishSearchResp.Data, []interface{}{})
+	assert.Empty(t, dishSearchResp.Data)
 	assert.Equal(t, dishSearchResp.Page, 1)
 	assert.Equal(t, dishSearchResp.Limit, 20)
 	assert.Equal(t, dishSearchResp.Total, 0)
+
+	seedDishes(t, db, user, 5)
+
+	r.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	fmt.Printf("Body: %s\n", rec.Body.Bytes())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &dishSearchResp))
+
+	assert.Equal(t, dishSearchResp.Success, true)
+	assert.Equal(t, dishSearchResp.Page, 1)
+	assert.Equal(t, dishSearchResp.Limit, 20)
+	assert.Equal(t, dishSearchResp.Total, 5)
+	// assert.Empty(t, dishSearchResp.Data)
 }

@@ -15,14 +15,14 @@ import (
 )
 
 func TestLogin_Success(t *testing.T) {
-	_, email, password := seedTenantAndUser(t, db)
+	user, password := seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	r := buildLoginRouter(t)
 
 	body := dto.LoginRequest{
-		Email:      email,
+		Email:      user.Email,
 		Password:   password,
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -48,20 +48,20 @@ func TestLogin_Success(t *testing.T) {
 
 	userData, ok := data["user"].(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, email, userData["email"])
+	assert.Equal(t, user.Email, userData["email"])
 	assert.Equal(t, "Test User", userData["name"])
 	assert.Equal(t, "customer", userData["role"])
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
-	_, email, _ := seedTenantAndUser(t, db)
+	user, _ := seedTenantAndUser(t, db)
 	defer truncateAll(t, db)
 	defer flushRedis(t)
 
 	r := buildLoginRouter(t)
 
 	body := dto.LoginRequest{
-		Email:      email,
+		Email:      user.Email,
 		Password:   "wrongpassword",
 	}
 	bodyBytes, _ := json.Marshal(body)

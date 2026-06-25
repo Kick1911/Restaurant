@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 	"github.com/kick/sigma-connected/internal/auth"
 	"github.com/kick/sigma-connected/internal/handler"
 	"github.com/kick/sigma-connected/internal/middleware"
+	"github.com/kick/sigma-connected/internal/domain"
 	"github.com/kick/sigma-connected/internal/repository"
 	"github.com/kick/sigma-connected/internal/service"
 
@@ -135,11 +137,12 @@ func flushRedis(t *testing.T) {
 	require.NoError(t, rdb.FlushAll(context.Background()).Err())
 }
 
-func seedTenantAndUser(t *testing.T, db *sqlx.DB) (slug, email, password string) {
+func seedTenantAndUser(t *testing.T, db *sqlx.DB) (user *domain.User, password string) {
 	t.Helper()
 
 	tenantID := uuid.New()
-	slug = "test-tenant"
+	userID := uuid.New()
+	slug := "test-tenant"
 
 	_, err := db.Exec(`
 		INSERT INTO tenants (id, name, slug, created_at, updated_at)
@@ -151,14 +154,38 @@ func seedTenantAndUser(t *testing.T, db *sqlx.DB) (slug, email, password string)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	require.NoError(t, err)
 
-	email = "test@example.com"
+	email := "test@example.com"
 	_, err = db.Exec(`
 		INSERT INTO users (id, tenant_id, name, email, password_hash, role, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
-		uuid.New(), tenantID, "Test User", email, string(hash), "customer")
+		userID, tenantID, "Test User", email, string(hash), "customer")
 	require.NoError(t, err)
 
+	userRepo := repository.NewUserRepository(db)
+	user, _ = userRepo.FindByID(t.Context(), userID)
+
 	return
+}
+
+func seedDishes(t *testing.T, db *sqlx.DB, user *domain.User, n int) []domain.Dish {
+	t.Helper()
+
+	dishRepo := repository.NewDishRepository(db)
+	dishes := make([]domain.Dish, n)
+	for i := range n {
+		dish := domain.Dish{
+			ID:          uuid.New(),
+			TenantID:    user.TenantID,
+			Name:        fmt.Sprintf("Dish %d", i+1),
+			Description: fmt.Sprintf("Description for dish %d", i+1),
+			Price:       9.99 + float64(i),
+			ImageURL:    fmt.Sprintf("https://example.com/images/dish-%d.jpg", i+1),
+		}
+		err := dishRepo.Create(t.Context(), &dish)
+		require.NoError(t, err)
+		dishes[i] = dish
+	}
+	return dishes
 }
 
 func generateTestToken(t *testing.T) string {
