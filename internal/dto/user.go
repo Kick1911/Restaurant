@@ -3,7 +3,7 @@ package dto
 import "github.com/go-playground/validator/v10"
 
 type RegisterRequest struct {
-	TenantSlug string `json:"tenant_slug" validate:"required,min=2,max=50"`
+	TenantSlug string `json:"tenant_slug" validate:"required,lowercase,min=2,max=50"`
 	Name       string `json:"name" validate:"required,min=2,max=100"`
 	Email      string `json:"email" validate:"required,email"`
 	Password   string `json:"password" validate:"required,min=8,max=72"`
