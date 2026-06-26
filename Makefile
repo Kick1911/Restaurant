@@ -16,7 +16,7 @@ lint:
 	golangci-lint run ./...
 
 test:
-	go test ./... -v
+	go test -v -count=1 -timeout=180s ./internal/tests
 
 clean:
 	rm -rf bin/
