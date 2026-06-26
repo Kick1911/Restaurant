@@ -9,19 +9,19 @@ import (
 
 type APIResponse struct {
 	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
+	Data    any         `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
 }
 
-type PaginatedResponse struct {
+type PaginatedResponse[T any] struct {
 	Success bool        `json:"success"`
-	Data    interface{} `json:"data"`
+	Data    T         `json:"data"`
 	Page    int         `json:"page"`
 	Limit   int         `json:"limit"`
 	Total   int         `json:"total"`
 }
 
-func JSON(w http.ResponseWriter, status int, data interface{}) {
+func JSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: data})
@@ -49,10 +49,10 @@ func ValidationError(w http.ResponseWriter, err error) {
 	json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "validation failed", Data: errors})
 }
 
-func Paginated(w http.ResponseWriter, data interface{}, page, limit, total int) {
+func Paginated(w http.ResponseWriter, data any, page, limit, total int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(PaginatedResponse{
+	json.NewEncoder(w).Encode(PaginatedResponse[any]{
 		Success: true,
 		Data:    data,
 		Page:    page,
