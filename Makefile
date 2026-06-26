@@ -12,9 +12,6 @@ migrate-up:
 migrate-down:
 	migrate -path migrations -database "$(DATABASE_URL)" down
 
-lint:
-	golangci-lint run ./...
-
 test:
 	go test -v -count=1 -timeout=180s ./internal/tests
 
