@@ -31,7 +31,7 @@ make migrate-up             # migrate -path migrations -database "$DATABASE_URL"
 | Handlers | `internal/handler` | Validate via `dto.Validate()`, call services, use `pkg/response` helpers |
 | Services | `internal/service` | Business logic; `UserService` owns brute-force + JWT |
 | Repositories | `internal/repository` | Raw sqlx queries (no ORM) |
-| Middleware | `internal/middleware` | `Auth` (JWT), `RequireRole`, `RateLimit` (per-user in-memory 10/s burst 20), `BruteForceProtector` (Redis, 5 attempts → 15m lockout), `Logging` |
+| Middleware | `internal/middleware` | `Auth` (JWT), `RequireRole`, `RateLimiter` (Redis sorted set, 20 req/s sliding window), `BruteForceProtector` (Redis, 5 attempts → 15m lockout), `Logging` |
 | Auth | `internal/auth` | `jwt.go` (HS256, issuer `the-orc-shack`), `password.go` (bcrypt) |
 | DTOs | `internal/dto` | Request/response structs with `validate` tags |
 | Response helpers | `pkg/response` | `JSON`, `Error`, `ValidationError`, `Paginated` — all wrapped in `{"success": bool, ...}` |
@@ -71,4 +71,4 @@ POST   /dishes/{id}/ratings    # auth + rate-limit (any role)
 
 - `internal/db/` is the intended sqlc output dir but doesn't exist — run `make sqlc` first if adding sqlc-generated queries.
 - `Login` in `UserService.FindByEmail` queries **without tenant scoping** (searches globally by email), unlike other queries.
-- Rate limiter is in-memory (`sync.Mutex` + `map`) — lost on restart, not shared across replicas.
+

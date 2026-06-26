@@ -53,6 +53,7 @@ func main() {
 	})
 
 	bfProtector := middleware.NewBruteForceProtector(rdb)
+	rl := middleware.NewRateLimiter(rdb)
 
 	tenantRepo := repository.NewTenantRepository(db)
 	userRepo := repository.NewUserRepository(db)
@@ -88,7 +89,7 @@ func main() {
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(cfg.JWT.Secret))
-			r.Use(middleware.RateLimit)
+			r.Use(rl.Middleware)
 
 			r.Get("/dishes", dishHandler.Search)
 			r.Get("/dishes/{id}", dishHandler.GetByID)

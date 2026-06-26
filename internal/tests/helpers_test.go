@@ -223,11 +223,13 @@ func buildDishRouter(t *testing.T) *chi.Mux {
 	ratingService := service.NewRatingService(ratingRepo)
 	ratingHandler := handler.NewRatingHandler(ratingService)
 
+	rl := middleware.NewRateLimiter(rdb)
+
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth("test-secret"))
-			r.Use(middleware.RateLimit)
+			r.Use(rl.Middleware)
 
 			r.Get("/dishes", dishHandler.Search)
 			r.Get("/dishes/{id}", dishHandler.GetByID)
