@@ -1,0 +1,225 @@
+openapi: 3.0.0
+info:
+  title: restaurant-openapi
+  version: 1.0.0
+paths:
+  /api/v1/login:
+    post:
+      summary: Login
+      operationId: sigma_connected_resturant_api_v1_login_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      requestBody:
+        $ref: '#/components/requestBodies/login'
+      servers:
+        - url: http://localhost:8080
+  /api/v1/register:
+    post:
+      summary: Register
+      operationId: sigma_connected_resturant_api_v1_register_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      requestBody:
+        $ref: '#/components/requestBodies/register'
+      servers:
+        - url: http://localhost:8080
+  /api/v1/dishes/{id}:
+    delete:
+      summary: Delete Dish
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_admin_delete_dish_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      servers:
+        - url: http://localhost:8080
+    put:
+      summary: Put Dish
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_admin_put_dish_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      servers:
+        - url: http://localhost:8080
+    get:
+      summary: Get Dish
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_user_get_dish_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      servers:
+        - url: http://localhost:8080
+  /api/v1/dishes:
+    post:
+      summary: Post Dish
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_admin_post_dish_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      requestBody:
+        $ref: '#/components/requestBodies/post_dish'
+      servers:
+        - url: http://localhost:8080
+    get:
+      summary: Search Dishes
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_user_search_dishes_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      servers:
+        - url: http://localhost:8080
+  /api/v1/dishes/{id}/ratings:
+    get:
+      summary: Get Ratings
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_user_get_ratings_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      servers:
+        - url: http://localhost:8080
+    post:
+      summary: Post Ratings
+      operationId: >-
+        sigma_connected_resturant_api_v1_menu_user_post_ratings_yml
+      description: ''
+      tags:
+        - API V1
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      servers:
+        - url: http://localhost:8080
+servers: []
+components:
+  schemas:
+    login:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        email: mail@cengelsman.com
+        password: Password123
+    register:
+      type: object
+      properties:
+        tenant_slug:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        tenant_slug: sigma
+        name: Caswall Engelsman
+        email: mail@cengelsman.com
+        password: Password123
+    post_dish:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        image_url:
+          type: string
+      example:
+        name: Sandwich
+        description: Sandwich
+        price: 85.5
+        image_url: http://example.com/sandwich.jpg
+  requestBodies:
+    login:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/login'
+      description: ''
+      required: true
+    register:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/register'
+      description: ''
+      required: true
+    post_dish:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/post_dish'
+      description: ''
+      required: true
+  securitySchemes: {}
